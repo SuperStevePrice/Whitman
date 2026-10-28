@@ -1,4 +1,24 @@
 <!DOCTYPE html>
+<!--
+  Whitman project — build log
+  2026-10-27: Added dedicated Drum-Taps imagery (Beat! Beat! Drums!, Come Up from
+  the Fields Father, The Wound-Dresser, O Captain! my Captain!, Reconciliation +
+  alternate); gave Taps its own image map, independent of Lilacs; added this
+  build-date stamp (hidden comment here + faint visible stamp on the catalog page).
+  2026-10-27 (earlier): Split the oversized "seashore" section in Out of the Cradle
+  into four smaller chunks so the scroll-watcher can actually trigger on it.
+  2026-10-27 (earlier): Renamed "Song of Myself" to "Song of Myself — Canto One";
+  made all four marginalia panes (Cradle/Myself/Lilacs/Taps) sticky, so a stanza
+  with no mapped image keeps showing the last real photo instead of flickering to
+  blank; removed 10 placeholder AI-style SVG sketches from the marginalia gallery,
+  leaving only real photographs and period lithographs; replaced the "comrades
+  three" AI image with Storming Fort Wagner (Kurz & Allison, 1890); widened the
+  sketch gallery to three columns and fixed the top row clipping off in full-screen.
+  2026-10-27 (earlier still): Added the Fulton Ferry photo to Song of Myself (first
+  image that section ever had); wired real photographs into the scroll-synced
+  marginalia maps for Lilacs, Drum-Taps, and Out of the Cradle (previously the
+  maps were deliberately left empty pending real images).
+-->
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
@@ -200,6 +220,15 @@
   }
   .return:hover, .return:focus-visible { opacity: 0.85; }
 
+  #build-stamp {
+    font-size: clamp(0.55rem, 1.2vw, 0.68rem);
+    letter-spacing: 0.08em;
+    color: var(--paper-light);
+    opacity: 0.3;
+    margin-top: 1.5rem;
+    user-select: none;
+  }
+
   /* ---------- Recitation placeholder ---------- */
   #sketches {
     position: absolute;
@@ -396,6 +425,7 @@
     </ul>
     <button type="button" class="return" id="back-to-walt">&larr; back to walt</button>
     <button type="button" class="return" id="to-sketches">marginalia sketches &rarr;</button>
+    <div id="build-stamp">build 2026-10-27 &mdash; Drum-Taps imagery</div>
   </div>
 
   <!-- MARGINALIA SKETCHES preview -->
@@ -411,7 +441,7 @@
       
       <figure>
         <img id="svg-hospital" src="images/rebel-boy.jpg" alt="Young Confederate soldier, ambrotype portrait, Civil War era" loading="lazy" />
-        <figcaption>the military hospital &mdash; the wound-dresser&rsquo;s ward</figcaption>
+        <figcaption>a soldier&rsquo;s portrait &mdash; so young and elate but cold</figcaption>
       </figure>
       <figure>
         <img id="svg-ships" src="images/good-grey-poet.png" alt="Walt Whitman, late-life portrait, 'the Good Gray Poet'" loading="lazy" />
@@ -433,6 +463,30 @@
       <figure>
         <img id="svg-ferry" src="images/fulton-ferry.jpg" alt="Fulton Ferry street scene, Brooklyn, 1870" loading="lazy" />
         <figcaption>the crowded street &mdash; I am large, I contain multitudes</figcaption>
+      </figure>
+      <figure>
+        <img id="svg-taps-march" src="images/taps-beat-drums.jpg" alt="Drum and bugle corps charging through a village, Civil War era illustration" loading="lazy" />
+        <figcaption>beat! beat! drums! &mdash; burst like a ruthless force</figcaption>
+      </figure>
+      <figure>
+        <img id="svg-taps-homestead" src="images/taps-come-up-fields.jpg" alt="A farm family reading a wartime letter on their porch" loading="lazy" />
+        <figcaption>come up from the fields, father &mdash; there&rsquo;s a letter from our Pete</figcaption>
+      </figure>
+      <figure>
+        <img id="svg-taps-hospital" src="images/taps-wound-dresser.jpg" alt="A caretaker tending a wounded soldier in a hospital tent" loading="lazy" />
+        <figcaption>the wound-dresser &mdash; bearing the bandages, water and sponge</figcaption>
+      </figure>
+      <figure>
+        <img id="svg-taps-ships" src="images/taps-captain.jpg" alt="An officer mourning a flag-draped body on a ship's deck as the shore celebrates" loading="lazy" />
+        <figcaption>O Captain! my Captain! &mdash; fallen cold and dead</figcaption>
+      </figure>
+      <figure>
+        <img id="svg-taps-flags" src="images/taps-reconciliation.jpg" alt="A Union officer kissing the forehead of a fallen enemy soldier in a coffin" loading="lazy" />
+        <figcaption>reconciliation &mdash; I touch lightly with my lips the white face in the coffin</figcaption>
+      </figure>
+      <figure>
+        <img id="svg-taps-reconciliation-alt" src="images/taps-reconciliation-alt.jpg" alt="An alternate view of a Union officer mourning over a fallen enemy soldier's coffin" loading="lazy" />
+        <figcaption>reconciliation &mdash; for my enemy is dead, a man divine as myself is dead</figcaption>
       </figure>
     </div>
     <button type="button" class="return" id="back-from-sketches">&larr; back</button>
@@ -1608,8 +1662,13 @@
   // locomotive, dc-street, flags, march, prairie, homestead) are intentionally omitted until
   // real public-domain images replace them.
   const lilacsMarginaliaMap = {
-    battle: 'svg-battle', ships: 'svg-ships', lilacs: 'svg-lilacs', hospital: 'svg-hospital',
+    battle: 'svg-battle', ships: 'svg-ships', lilacs: 'svg-lilacs',
     companions: 'svg-companions'
+  };
+
+  const tapsMarginaliaMap = {
+    march: 'svg-taps-march', homestead: 'svg-taps-homestead', hospital: 'svg-taps-hospital',
+    ships: 'svg-taps-ships', flags: 'svg-taps-flags'
   };
   let lilacsImageKey = null;
 
@@ -1644,7 +1703,7 @@
   let tapsImageKey = null;
 
   function setTapsMarginalia(key) {
-    const svgId = lilacsMarginaliaMap[key];
+    const svgId = tapsMarginaliaMap[key];
     if (!svgId) return; // no image for this stanza — leave whatever's already showing in place
     if (key === tapsImageKey) return;
     tapsImageKey = key;
