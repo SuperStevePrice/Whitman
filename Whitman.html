@@ -1,7 +1,9 @@
 <!DOCTYPE html>
 <!--
   Whitman project — build log
-  2026-10-27: Added dedicated Drum-Taps imagery (Beat! Beat! Drums!, Come Up from
+  2026-10-27: Added a "learn more" paragraph to the catalog page, linking out to
+  the Walt Whitman Archive and the Poetry Foundation for full biography and works.
+  2026-10-27 (earlier): Added dedicated Drum-Taps imagery (Beat! Beat! Drums!, Come Up from
   the Fields Father, The Wound-Dresser, O Captain! my Captain!, Reconciliation +
   alternate); gave Taps its own image map, independent of Lilacs; added this
   build-date stamp (hidden comment here + faint visible stamp on the catalog page).
@@ -220,6 +222,23 @@
   }
   .return:hover, .return:focus-visible { opacity: 0.85; }
 
+  #learn-more {
+    font-size: clamp(0.7rem, 1.6vw, 0.85rem);
+    font-style: italic;
+    opacity: 0.7;
+    max-width: 26rem;
+    text-align: center;
+    line-height: 1.5;
+    margin: 1.75rem auto 0;
+  }
+  #learn-more a {
+    color: var(--gold);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-color 200ms ease;
+  }
+  #learn-more a:hover, #learn-more a:focus-visible { border-bottom-color: var(--gold); }
+
   #build-stamp {
     font-size: clamp(0.55rem, 1.2vw, 0.68rem);
     letter-spacing: 0.08em;
@@ -425,7 +444,8 @@
     </ul>
     <button type="button" class="return" id="back-to-walt">&larr; back to walt</button>
     <button type="button" class="return" id="to-sketches">marginalia sketches &rarr;</button>
-    <div id="build-stamp">build 2026-10-27 &mdash; Drum-Taps imagery</div>
+    <p id="learn-more">This is only a taste of Whitman. For his full biography, letters, and complete works, see <a href="https://whitmanarchive.org" target="_blank" rel="noopener">the Walt Whitman Archive</a> &mdash; or for a shorter introduction, <a href="https://www.poetryfoundation.org/poets/walt-whitman" target="_blank" rel="noopener">the Poetry Foundation</a>.</p>
+    <div id="build-stamp">build 2026-10-27 &mdash; links to learn more</div>
   </div>
 
   <!-- MARGINALIA SKETCHES preview -->
