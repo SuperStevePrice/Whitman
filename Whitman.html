@@ -1,14 +1,23 @@
 <!DOCTYPE html>
 <!--
   Whitman project — build log
+  2026-11-01d: Moved the build-date info off the bottom of the scrollable poem
+  list (easy to lose once the list grows) to a small pinned "i" button in the
+  bottom-right corner of the contents page; click it to show/hide the build line.
+  Popup now reads as a plain build number + hour ("Build YYYY-MM-DDx — Hpm/am
+  Pacific") rather than a note-to-self; keep that format on future builds.
+  2026-11-01c: Re-added image-pane scroll pass-through, carefully: wheel events that
+  start over the marginalia image now scroll the poem text (instant, no smooth
+  animation, text column left on native scrolling).
   2026-11-01: Fixed voice-toggle button showing a permanent "not-allowed" cursor
   (leftover CSS from before audio existed, never split for the enabled state) —
   confirmed fixed live. Attempted a fix for scrolling not working when the cursor
   sits over the marginalia image column (which has no scroll of its own); the
   attempted fix did not work as intended and was reverted — this remains a known
   issue; scrolling with the cursor directly over the poem text works correctly.
-  Also made the build-date stamp on the catalog page actually visible (it existed
-  but was too faint to spot).
+  Also made the build-date stamp on the catalog page actually visible. Root cause
+  of it being hidden: the catalog is a fixed-height box and large gaps pushed the
+  stamp off the bottom. Gaps tightened and the catalog can now scroll if needed.
   2026-10-27: Added a "learn more" paragraph to the catalog page, linking out to
   the Walt Whitman Archive and the Poetry Foundation for full biography and works.
   2026-10-27 (earlier): Added dedicated Drum-Taps imagery (Beat! Beat! Drums!, Come Up from
@@ -165,9 +174,10 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    gap: clamp(1.2rem, 3vw, 2rem);
-    padding: 2rem 1.25rem;
+    justify-content: flex-start;
+    overflow-y: auto;
+    gap: clamp(0.4rem, 1.2vw, 0.7rem);
+    padding: 1.5rem 1.25rem 1.5rem;
     background: radial-gradient(ellipse at 50% 20%, var(--ink-soft) 0%, var(--vignette) 72%);
     opacity: 0;
     pointer-events: none;
@@ -237,7 +247,7 @@
     max-width: 26rem;
     text-align: center;
     line-height: 1.5;
-    margin: 1.75rem auto 0;
+    margin: 0.5rem auto 0;
   }
   #learn-more a {
     color: var(--gold);
@@ -247,14 +257,47 @@
   }
   #learn-more a:hover, #learn-more a:focus-visible { border-bottom-color: var(--gold); }
 
-  #build-stamp {
-    font-size: clamp(0.65rem, 1.4vw, 0.8rem);
-    letter-spacing: 0.08em;
+  #build-info-btn {
+    all: unset;
+    position: fixed;
+    bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+    right: 1rem;
+    width: 1.7rem;
+    height: 1.7rem;
+    border-radius: 50%;
+    border: 1px solid rgba(201,163,95,0.5);
     color: var(--gold);
-    opacity: 0.55;
-    margin-top: 1.5rem;
-    user-select: none;
+    opacity: 0.5;
+    font-family: Georgia, serif;
+    font-style: italic;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: opacity 200ms ease;
+    z-index: 5;
   }
+  #build-info-btn:hover, #build-info-btn:focus-visible { opacity: 0.9; }
+  #build-info-popup {
+    position: fixed;
+    bottom: calc(3rem + env(safe-area-inset-bottom, 0px));
+    right: 1rem;
+    max-width: min(80vw, 22rem);
+    background: var(--ink-soft);
+    border: 1px solid rgba(201,163,95,0.4);
+    border-radius: 0.5rem;
+    padding: 0.6rem 0.8rem;
+    font-size: 0.72rem;
+    letter-spacing: 0.02em;
+    color: var(--paper-light);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(6px);
+    transition: opacity 200ms ease, transform 200ms ease;
+    z-index: 5;
+  }
+  #build-info-popup.show { opacity: 1; pointer-events: auto; transform: translateY(0); }
 
   /* ---------- Recitation placeholder ---------- */
   #sketches {
@@ -453,7 +496,8 @@
     <button type="button" class="return" id="back-to-walt">&larr; back to walt</button>
     <button type="button" class="return" id="to-sketches">marginalia sketches &rarr;</button>
     <p id="learn-more">This is only a taste of Whitman. For his full biography, letters, and complete works, see <a href="https://whitmanarchive.org" target="_blank" rel="noopener">the Walt Whitman Archive</a> &mdash; or for a shorter introduction, <a href="https://www.poetryfoundation.org/poets/walt-whitman" target="_blank" rel="noopener">the Poetry Foundation</a>.</p>
-    <div id="build-stamp">build 2026-11-01 &mdash; voice-toggle cursor fixed; stamp made visible</div>
+    <button type="button" id="build-info-btn" title="Build 2026-11-01d &mdash; 10pm Pacific" aria-label="build info">i</button>
+    <div id="build-info-popup">Build 2026-11-01d &mdash; 10pm Pacific</div>
   </div>
 
   <!-- MARGINALIA SKETCHES preview -->
@@ -1257,6 +1301,24 @@
     catalog.classList.remove('visible');
     hero.classList.remove('hidden', 'closing');
     syncScreenInert();
+  });
+
+  // Scroll gestures over the marginalia image column have nowhere to go (that column
+  // does not scroll), so pass them to the poem text. Plain instant scrollBy, only for
+  // events that start inside the image pane; the text column keeps native scrolling.
+  const buildInfoBtn = document.getElementById('build-info-btn');
+  const buildInfoPopup = document.getElementById('build-info-popup');
+  if (buildInfoBtn && buildInfoPopup) {
+    buildInfoBtn.addEventListener('click', () => buildInfoPopup.classList.toggle('show'));
+  }
+
+  document.querySelectorAll('.marginalia-pane').forEach(pane => {
+    pane.addEventListener('wheel', (e) => {
+      const text = pane.parentElement.querySelector('.poem-text');
+      if (!text) return;
+      e.preventDefault();
+      text.scrollBy({ top: e.deltaY, left: 0, behavior: 'instant' });
+    }, { passive: false });
   });
 
   document.querySelectorAll('#poem-list button').forEach(btn => {
