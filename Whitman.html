@@ -1,6 +1,12 @@
 <!DOCTYPE html>
 <!--
   Whitman project — build log
+  2026-11-01h: Hid the old top-right voice-toggle button (the floating play bar
+  is now the only playback control shown); kept it in the page, invisibly, since
+  the script still reads its disabled state internally. Added a temporary
+  visible "pausing for the next poem..." indicator, shown exactly when the
+  pause-between-poems code fires, to diagnose a report that the 3-second pause
+  isn't audible on Drum-Taps -- meant to be removed once that's confirmed working.
   2026-11-01g: Moved the info "i" button from the bottom-right to the top-right
   corner of the contents page (so it can never get pushed below the fold, the
   way the old bottom-of-list stamp once could) and made it genuinely visible
@@ -442,16 +448,31 @@
     margin: 0;
   }
   .voice-toggle {
-    all: unset;
-    font-size: 0.75rem;
-    letter-spacing: 0.08em;
-    padding: 0.3rem 0.7rem;
-    border: 1px solid rgba(201,163,95,0.4);
-    border-radius: 999px;
-    color: var(--paper-light);
+    /* Hidden: the floating play bar is now the only playback control the user
+       sees. The element itself stays in the page because the script still uses
+       it internally to track whether a poem has audio (its disabled state). */
+    position: absolute;
+    width: 1px; height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
   }
   .voice-toggle:not(:disabled) { opacity: 0.85; cursor: pointer; }
   .voice-toggle:disabled { opacity: 0.4; cursor: not-allowed; }
+  #pause-indicator {
+    position: fixed;
+    left: 50%;
+    bottom: calc(4.3rem + env(safe-area-inset-bottom, 0px));
+    transform: translateX(-50%);
+    font-size: 0.75rem;
+    font-style: italic;
+    color: var(--gold);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 200ms ease;
+    z-index: 6;
+  }
+  #pause-indicator.show { opacity: 0.95; }
   #play-bar {
     position: fixed;
     left: 50%;
@@ -688,6 +709,8 @@
     <audio id="taps-audio" preload="none"></audio>
     <audio id="lilacs-audio" preload="none"></audio>
     <audio id="myself-audio" preload="none"></audio>
+
+    <div id="pause-indicator">pausing for the next poem&hellip;</div>
 
     <div id="play-bar">
       <button type="button" id="pb-rewind" disabled aria-label="rewind 10 seconds" title="rewind 10s">&#8634;<span>10</span></button>
@@ -1734,7 +1757,10 @@
     if (idx === 0 || !/-h-\d+$/.test(cue.id) || pausesSeen.has(idx)) return;
     pausesSeen.add(idx);
     audioEl.pause();
+    const indicator = document.getElementById('pause-indicator');
+    if (indicator) indicator.classList.add('show');
     setTimeout(() => {
+      if (indicator) indicator.classList.remove('show');
       if (voiceOn && getActiveAudioEl() === audioEl) audioEl.play();
     }, POEM_PAUSE_MS);
   }
