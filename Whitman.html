@@ -2,10 +2,13 @@
 <!--
   Whitman project — build log
   2026-11-01: Fixed voice-toggle button showing a permanent "not-allowed" cursor
-  (leftover CSS from before audio existed, never split for the enabled state).
-  Fixed inability to scroll a poem's text when the cursor was over the marginalia
-  image column instead of the text itself (that column has no scroll of its own;
-  wheel/trackpad input is now forwarded to the text regardless of cursor position).
+  (leftover CSS from before audio existed, never split for the enabled state) —
+  confirmed fixed live. Attempted a fix for scrolling not working when the cursor
+  sits over the marginalia image column (which has no scroll of its own); the
+  attempted fix did not work as intended and was reverted — this remains a known
+  issue; scrolling with the cursor directly over the poem text works correctly.
+  Also made the build-date stamp on the catalog page actually visible (it existed
+  but was too faint to spot).
   2026-10-27: Added a "learn more" paragraph to the catalog page, linking out to
   the Walt Whitman Archive and the Poetry Foundation for full biography and works.
   2026-10-27 (earlier): Added dedicated Drum-Taps imagery (Beat! Beat! Drums!, Come Up from
@@ -245,10 +248,10 @@
   #learn-more a:hover, #learn-more a:focus-visible { border-bottom-color: var(--gold); }
 
   #build-stamp {
-    font-size: clamp(0.55rem, 1.2vw, 0.68rem);
+    font-size: clamp(0.65rem, 1.4vw, 0.8rem);
     letter-spacing: 0.08em;
-    color: var(--paper-light);
-    opacity: 0.3;
+    color: var(--gold);
+    opacity: 0.55;
     margin-top: 1.5rem;
     user-select: none;
   }
@@ -450,7 +453,7 @@
     <button type="button" class="return" id="back-to-walt">&larr; back to walt</button>
     <button type="button" class="return" id="to-sketches">marginalia sketches &rarr;</button>
     <p id="learn-more">This is only a taste of Whitman. For his full biography, letters, and complete works, see <a href="https://whitmanarchive.org" target="_blank" rel="noopener">the Walt Whitman Archive</a> &mdash; or for a shorter introduction, <a href="https://www.poetryfoundation.org/poets/walt-whitman" target="_blank" rel="noopener">the Poetry Foundation</a>.</p>
-    <div id="build-stamp">build 2026-11-01 &mdash; voice-toggle cursor and scroll fix</div>
+    <div id="build-stamp">build 2026-11-01 &mdash; voice-toggle cursor fixed; stamp made visible</div>
   </div>
 
   <!-- MARGINALIA SKETCHES preview -->
@@ -1254,18 +1257,6 @@
     catalog.classList.remove('visible');
     hero.classList.remove('hidden', 'closing');
     syncScreenInert();
-  });
-
-  // The marginalia image column has no scroll of its own; forward wheel/trackpad
-  // input from anywhere in the poem layout to the actual scrollable text column,
-  // so scrolling works regardless of where the cursor happens to be.
-  document.querySelectorAll('.poem-body').forEach(body => {
-    body.addEventListener('wheel', (e) => {
-      const poemText = body.querySelector('.poem-text');
-      if (!poemText || poemText.contains(e.target)) return;
-      poemText.scrollTop += e.deltaY;
-      e.preventDefault();
-    }, { passive: false });
   });
 
   document.querySelectorAll('#poem-list button').forEach(btn => {
