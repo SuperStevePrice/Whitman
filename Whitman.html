@@ -1,6 +1,13 @@
 <!DOCTYPE html>
 <!--
   Whitman project — build log
+  2026-11-01 06:56 Pacific: Moved the play bar from a floating overlay at the
+  bottom to a centered toolbar at the very top of the recitation screen, above
+  the poem title. It's now part of the normal page layout rather than
+  fixed-position, so it pushes the title and text down instead of floating over
+  them -- can't overlap anything, on any window size. Also: build timestamps are
+  now pulled from the real system clock (`TZ="America/Los_Angeles" date`)
+  instead of estimated.
   2026-11-01l: Replaced the fixed 3-second pause between poems with a modal
   dialog (Repeat / Continue / Stop) -- no more guessing a pause length; the
   listener decides. Fires at every poem-to-poem boundary on a multi-poem page,
@@ -533,19 +540,18 @@
     color: var(--ink);
   }
   #play-bar {
-    position: fixed;
-    left: 50%;
-    bottom: calc(1.1rem + env(safe-area-inset-bottom, 0px));
-    transform: translateX(-50%);
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 1.1rem;
+    width: fit-content;
+    margin: 0 auto 0.9rem;
     padding: 0.5rem 1rem;
-    background: rgba(6,4,2,0.72);
+    background: rgba(6,4,2,0.55);
     border: 1px solid rgba(201,163,95,0.4);
     border-radius: 999px;
     backdrop-filter: blur(6px);
-    z-index: 6;
+    flex: 0 0 auto;
   }
   #play-bar button {
     all: unset;
@@ -688,7 +694,7 @@
         <p>Created by Rodney Stephen (Steve) Price, with Claude (Anthropic), 2026.</p>
         <p>Imagery is a mix of public-domain period photographs and lithographs, and AI-generated artwork (Google Flow) for the Drum-Taps selections &mdash; directed and curated by Rodney Stephen (Steve) Price.</p>
         <p>Poems are Walt Whitman&rsquo;s own words, in the public domain.</p>
-        <p class="build-line">Build 2026-11-01l &mdash; 6:42am Pacific</p>
+        <p class="build-line">Build 2026-11-01 06:56 Pacific</p>
       </div>
     </div>
   </div>
@@ -759,6 +765,11 @@
 
   <!-- RECITATION -->
   <div id="recitation">
+    <div id="play-bar">
+      <button type="button" id="pb-rewind" disabled aria-label="rewind 10 seconds" title="rewind 10s">&#8634;<span>10</span></button>
+      <button type="button" id="pb-play-pause" disabled aria-label="play">&#9654;</button>
+      <button type="button" id="pb-forward" disabled aria-label="forward 10 seconds" title="forward 10s">&#8635;<span>10</span></button>
+    </div>
     <div id="recitation-header">
       <h2 id="recitation-title"></h2>
       <button type="button" class="voice-toggle" id="voice-toggle" disabled title="no recording added yet">voice: not recorded yet</button>
@@ -778,12 +789,6 @@
           <button type="button" id="poem-modal-stop">Stop</button>
         </div>
       </div>
-    </div>
-
-    <div id="play-bar">
-      <button type="button" id="pb-rewind" disabled aria-label="rewind 10 seconds" title="rewind 10s">&#8634;<span>10</span></button>
-      <button type="button" id="pb-play-pause" disabled aria-label="play">&#9654;</button>
-      <button type="button" id="pb-forward" disabled aria-label="forward 10 seconds" title="forward 10s">&#8635;<span>10</span></button>
     </div>
 
     <div id="poem-cradle" class="poem-body">
