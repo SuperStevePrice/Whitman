@@ -1,6 +1,13 @@
 <!DOCTYPE html>
 <!--
   Whitman project — build log
+  2026-11-01j: Corrected three mistimed cues at the start of "Come Up from the
+  Fields Father" in Drum-Taps (tp-h-4, tp-p-5, tp-p-6), found by extracting the
+  actual embedded audio and measuring real silence gaps and speech content with
+  ffmpeg + pocketsphinx, rather than guessing. The title/first-line cue was firing
+  about 3.5-4 seconds too early -- mid-sentence in the still-playing "Beat! Beat!
+  Drums!" -- which is what caused the pause and image-change to land in the wrong
+  place. Everything from tp-p-7 onward checked out as already correct.
   2026-11-01i: Fixed a real bug in the pause-between-poems feature: each boundary
   had a permanent "already paused here" flag that was never cleared on rewind, so
   rewinding back to a boundary and replaying it stayed silent even though the
@@ -635,7 +642,7 @@
         <p>Created by Rodney Stephen (Steve) Price, with Claude (Anthropic), 2026.</p>
         <p>Imagery is a mix of public-domain period photographs and lithographs, and AI-generated artwork (Google Flow) for the Drum-Taps selections &mdash; directed and curated by Rodney Stephen (Steve) Price.</p>
         <p>Poems are Walt Whitman&rsquo;s own words, in the public domain.</p>
-        <p class="build-line">Build 2026-11-01i &mdash; 5am Pacific</p>
+        <p class="build-line">Build 2026-11-01j &mdash; 6am Pacific</p>
       </div>
     </div>
   </div>
@@ -1651,9 +1658,9 @@
     { t: 1.25, id: "tp-p-1", img: "march" },
     { t: 31.9, id: "tp-p-2", img: "march" },
     { t: 65.48, id: "tp-p-3", img: "march" },
-    { t: 93.44, id: "tp-h-4", img: "homestead" },
-    { t: 94.69, id: "tp-p-5", img: "homestead" },
-    { t: 103.62, id: "tp-p-6", img: "homestead" },
+    { t: 96.85, id: "tp-h-4", img: "homestead" },
+    { t: 98.6, id: "tp-p-5", img: "homestead" },
+    { t: 108.0, id: "tp-p-6", img: "homestead" },
     { t: 127.9, id: "tp-p-7", img: "homestead" },
     { t: 138.69, id: "tp-p-8", img: "homestead" },
     { t: 150.55, id: "tp-p-9", img: "homestead" },
