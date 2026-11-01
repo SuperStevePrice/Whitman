@@ -1,6 +1,12 @@
 <!DOCTYPE html>
 <!--
   Whitman project — build log
+  2026-11-01i: Fixed a real bug in the pause-between-poems feature: each boundary
+  had a permanent "already paused here" flag that was never cleared on rewind, so
+  rewinding back to a boundary and replaying it stayed silent even though the
+  pause had genuinely worked the first time through. Now keyed off the existing
+  idx-changed check alone, so it fires correctly on every genuine arrival at a
+  boundary, rewinds included.
   2026-11-01h: Hid the old top-right voice-toggle button (the floating play bar
   is now the only playback control shown); kept it in the page, invisibly, since
   the script still reads its disabled state internally. Added a temporary
@@ -629,7 +635,7 @@
         <p>Created by Rodney Stephen (Steve) Price, with Claude (Anthropic), 2026.</p>
         <p>Imagery is a mix of public-domain period photographs and lithographs, and AI-generated artwork (Google Flow) for the Drum-Taps selections &mdash; directed and curated by Rodney Stephen (Steve) Price.</p>
         <p>Poems are Walt Whitman&rsquo;s own words, in the public domain.</p>
-        <p class="build-line">Build 2026-11-01f &mdash; 11pm Pacific</p>
+        <p class="build-line">Build 2026-11-01i &mdash; 5am Pacific</p>
       </div>
     </div>
   </div>
@@ -1746,16 +1752,11 @@
   let lastMyselfCueIdx = -1;
   let activePoemAudio = null; // 'cradle' | 'taps' | 'lilacs' | 'myself' | null
   const POEM_PAUSE_MS = 3000; // pause between poems on a page with more than one
-  const cradlePoemPauses = new Set();
-  const tapsPoemPauses = new Set();
-  const lilacsPoemPauses = new Set();
-  const myselfPoemPauses = new Set();
   // A cue whose id ends "-h-N" marks a poem's heading; N > 0 (not the very first
   // cue on the page) means a new poem just started after another one on the same
   // page, which is where the pause belongs.
-  function maybePauseBetweenPoems(idx, cue, audioEl, pausesSeen) {
-    if (idx === 0 || !/-h-\d+$/.test(cue.id) || pausesSeen.has(idx)) return;
-    pausesSeen.add(idx);
+  function maybePauseBetweenPoems(idx, cue, audioEl) {
+    if (idx === 0 || !/-h-\d+$/.test(cue.id)) return;
     audioEl.pause();
     const indicator = document.getElementById('pause-indicator');
     if (indicator) indicator.classList.add('show');
@@ -1791,10 +1792,10 @@
 
   function stopActiveVoice() {
     voiceOn = false;
-    if (activePoemAudio === 'cradle') { cradleAudio.pause(); lastCradleCueIdx = -1; cradlePoemPauses.clear(); }
-    else if (activePoemAudio === 'taps') { tapsAudio.pause(); lastTapsCueIdx = -1; tapsPoemPauses.clear(); }
-    else if (activePoemAudio === 'lilacs') { lilacsAudio.pause(); lastLilacsCueIdx = -1; lilacsPoemPauses.clear(); }
-    else if (activePoemAudio === 'myself') { myselfAudio.pause(); lastMyselfCueIdx = -1; myselfPoemPauses.clear(); }
+    if (activePoemAudio === 'cradle') { cradleAudio.pause(); lastCradleCueIdx = -1; }
+    else if (activePoemAudio === 'taps') { tapsAudio.pause(); lastTapsCueIdx = -1; }
+    else if (activePoemAudio === 'lilacs') { lilacsAudio.pause(); lastLilacsCueIdx = -1; }
+    else if (activePoemAudio === 'myself') { myselfAudio.pause(); lastMyselfCueIdx = -1; }
   }
 
   function startVoice() {
@@ -1864,7 +1865,7 @@
       const el = document.getElementById(cue.id);
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       setMarginalia(cue.img);
-      maybePauseBetweenPoems(idx, cue, cradleAudio, cradlePoemPauses);
+      maybePauseBetweenPoems(idx, cue, cradleAudio);
     }
   });
 
@@ -1873,7 +1874,6 @@
       voiceOn = false;
       voiceToggle.textContent = 'voice: off';
       lastCradleCueIdx = -1;
-      cradlePoemPauses.clear();
       updatePlayBarState();
     }
   });
@@ -1891,7 +1891,7 @@
       const el = document.getElementById(cue.id);
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       setTapsMarginalia(cue.img);
-      maybePauseBetweenPoems(idx, cue, tapsAudio, tapsPoemPauses);
+      maybePauseBetweenPoems(idx, cue, tapsAudio);
     }
   });
 
@@ -1900,7 +1900,6 @@
       voiceOn = false;
       voiceToggle.textContent = 'voice: off';
       lastTapsCueIdx = -1;
-      tapsPoemPauses.clear();
       updatePlayBarState();
     }
   });
@@ -1918,7 +1917,7 @@
       const el = document.getElementById(cue.id);
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       setLilacsMarginalia(cue.img);
-      maybePauseBetweenPoems(idx, cue, lilacsAudio, lilacsPoemPauses);
+      maybePauseBetweenPoems(idx, cue, lilacsAudio);
     }
   });
 
@@ -1927,7 +1926,6 @@
       voiceOn = false;
       voiceToggle.textContent = 'voice: off';
       lastLilacsCueIdx = -1;
-      lilacsPoemPauses.clear();
       updatePlayBarState();
     }
   });
@@ -1945,7 +1943,7 @@
       const el = document.getElementById(cue.id);
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       setMyselfMarginalia(cue.img);
-      maybePauseBetweenPoems(idx, cue, myselfAudio, myselfPoemPauses);
+      maybePauseBetweenPoems(idx, cue, myselfAudio);
     }
   });
 
@@ -1954,7 +1952,6 @@
       voiceOn = false;
       voiceToggle.textContent = 'voice: off';
       lastMyselfCueIdx = -1;
-      myselfPoemPauses.clear();
       updatePlayBarState();
     }
   });
