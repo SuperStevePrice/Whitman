@@ -1,6 +1,11 @@
 <!DOCTYPE html>
 <!--
   Whitman project — build log
+  2026-11-01: Fixed voice-toggle button showing a permanent "not-allowed" cursor
+  (leftover CSS from before audio existed, never split for the enabled state).
+  Fixed inability to scroll a poem's text when the cursor was over the marginalia
+  image column instead of the text itself (that column has no scroll of its own;
+  wheel/trackpad input is now forwarded to the text regardless of cursor position).
   2026-10-27: Added a "learn more" paragraph to the catalog page, linking out to
   the Walt Whitman Archive and the Poetry Foundation for full biography and works.
   2026-10-27 (earlier): Added dedicated Drum-Taps imagery (Beat! Beat! Drums!, Come Up from
@@ -341,9 +346,9 @@
     border: 1px solid rgba(201,163,95,0.4);
     border-radius: 999px;
     color: var(--paper-light);
-    opacity: 0.45;
-    cursor: not-allowed;
   }
+  .voice-toggle:not(:disabled) { opacity: 0.85; cursor: pointer; }
+  .voice-toggle:disabled { opacity: 0.4; cursor: not-allowed; }
   .poem-body {
     flex: 1;
     min-height: 0;
@@ -445,7 +450,7 @@
     <button type="button" class="return" id="back-to-walt">&larr; back to walt</button>
     <button type="button" class="return" id="to-sketches">marginalia sketches &rarr;</button>
     <p id="learn-more">This is only a taste of Whitman. For his full biography, letters, and complete works, see <a href="https://whitmanarchive.org" target="_blank" rel="noopener">the Walt Whitman Archive</a> &mdash; or for a shorter introduction, <a href="https://www.poetryfoundation.org/poets/walt-whitman" target="_blank" rel="noopener">the Poetry Foundation</a>.</p>
-    <div id="build-stamp">build 2026-10-27 &mdash; links to learn more</div>
+    <div id="build-stamp">build 2026-11-01 &mdash; voice-toggle cursor and scroll fix</div>
   </div>
 
   <!-- MARGINALIA SKETCHES preview -->
@@ -1249,6 +1254,18 @@
     catalog.classList.remove('visible');
     hero.classList.remove('hidden', 'closing');
     syncScreenInert();
+  });
+
+  // The marginalia image column has no scroll of its own; forward wheel/trackpad
+  // input from anywhere in the poem layout to the actual scrollable text column,
+  // so scrolling works regardless of where the cursor happens to be.
+  document.querySelectorAll('.poem-body').forEach(body => {
+    body.addEventListener('wheel', (e) => {
+      const poemText = body.querySelector('.poem-text');
+      if (!poemText || poemText.contains(e.target)) return;
+      poemText.scrollTop += e.deltaY;
+      e.preventDefault();
+    }, { passive: false });
   });
 
   document.querySelectorAll('#poem-list button').forEach(btn => {
