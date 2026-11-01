@@ -1,6 +1,18 @@
 <!DOCTYPE html>
 <!--
   Whitman project — build log
+  2026-11-01f: Added a 3-second pause between poems on any page with more than
+  one (currently Drum-Taps); detected generically off each poem's heading cues,
+  so it will apply automatically to future multi-poem pages too. Added a
+  floating play bar (rewind 10s, play/pause, forward 10s) at the bottom of the
+  recitation screen, alongside the existing voice-toggle button; both controls
+  share the same underlying play/pause logic and stay in sync.
+  2026-11-01e: Expanded the "i" button's small popup into a full About panel
+  (modeled on the Pray app's About modal): project description, creator credit,
+  imagery credit (period photographs/lithographs + AI-generated Drum-Taps art,
+  Google Flow), note that poem texts are Whitman's own public-domain words, and
+  the build line at the bottom. Closes via its own X, clicking the backdrop, or
+  Escape.
   2026-11-01d: Moved the build-date info off the bottom of the scrollable poem
   list (easy to lose once the list grows) to a small pinned "i" button in the
   bottom-right corner of the contents page; click it to show/hide the build line.
@@ -281,23 +293,62 @@
   #build-info-btn:hover, #build-info-btn:focus-visible { opacity: 0.9; }
   #build-info-popup {
     position: fixed;
-    bottom: calc(3rem + env(safe-area-inset-bottom, 0px));
-    right: 1rem;
-    max-width: min(80vw, 22rem);
-    background: var(--ink-soft);
-    border: 1px solid rgba(201,163,95,0.4);
-    border-radius: 0.5rem;
-    padding: 0.6rem 0.8rem;
-    font-size: 0.72rem;
-    letter-spacing: 0.02em;
-    color: var(--paper-light);
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    background: rgba(6,4,2,0.75);
     opacity: 0;
     pointer-events: none;
-    transform: translateY(6px);
-    transition: opacity 200ms ease, transform 200ms ease;
-    z-index: 5;
+    transition: opacity 250ms ease;
+    z-index: 20;
   }
-  #build-info-popup.show { opacity: 1; pointer-events: auto; transform: translateY(0); }
+  #build-info-popup.show { opacity: 1; pointer-events: auto; }
+  #build-info-card {
+    position: relative;
+    max-width: 30rem;
+    max-height: 80vh;
+    overflow-y: auto;
+    background: var(--ink-soft);
+    border: 1px solid rgba(201,163,95,0.4);
+    border-radius: 0.75rem;
+    padding: 1.9rem 1.7rem 1.6rem;
+    color: var(--paper-light);
+  }
+  #build-info-card h2 {
+    font-family: 'IM Fell English SC', serif;
+    font-weight: 400;
+    color: var(--gold);
+    font-size: 1.25rem;
+    letter-spacing: 0.03em;
+    margin: 0 0 1.1rem;
+  }
+  #build-info-card p {
+    font-size: 0.85rem;
+    line-height: 1.6;
+    opacity: 0.9;
+    margin: 0 0 0.9rem;
+  }
+  #build-info-card p.build-line {
+    opacity: 0.5;
+    font-size: 0.7rem;
+    letter-spacing: 0.04em;
+    margin: 1.3rem 0 0;
+  }
+  #build-info-close {
+    all: unset;
+    position: absolute;
+    top: 0.7rem;
+    right: 0.9rem;
+    font-size: 1.4rem;
+    line-height: 1;
+    color: var(--paper-light);
+    opacity: 0.55;
+    cursor: pointer;
+    padding: 0.2rem 0.4rem;
+  }
+  #build-info-close:hover, #build-info-close:focus-visible { opacity: 1; }
 
   /* ---------- Recitation placeholder ---------- */
   #sketches {
@@ -395,6 +446,52 @@
   }
   .voice-toggle:not(:disabled) { opacity: 0.85; cursor: pointer; }
   .voice-toggle:disabled { opacity: 0.4; cursor: not-allowed; }
+  #play-bar {
+    position: fixed;
+    left: 50%;
+    bottom: calc(1.1rem + env(safe-area-inset-bottom, 0px));
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 1.1rem;
+    padding: 0.5rem 1rem;
+    background: rgba(6,4,2,0.72);
+    border: 1px solid rgba(201,163,95,0.4);
+    border-radius: 999px;
+    backdrop-filter: blur(6px);
+    z-index: 6;
+  }
+  #play-bar button {
+    all: unset;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--paper-light);
+    cursor: pointer;
+    opacity: 0.85;
+    transition: opacity 150ms ease, transform 150ms ease;
+  }
+  #play-bar button:hover:not(:disabled), #play-bar button:focus-visible:not(:disabled) { opacity: 1; transform: scale(1.08); }
+  #play-bar button:disabled { opacity: 0.3; cursor: not-allowed; }
+  #pb-play-pause {
+    font-size: 1.5rem;
+    width: 2.4rem;
+    height: 2.4rem;
+    border-radius: 50%;
+    border: 1px solid rgba(201,163,95,0.5);
+    color: var(--gold);
+  }
+  #pb-rewind, #pb-forward {
+    flex-direction: column;
+    font-size: 1.15rem;
+    gap: 0.05rem;
+  }
+  #pb-rewind span, #pb-forward span {
+    font-size: 0.55rem;
+    letter-spacing: 0.03em;
+    opacity: 0.8;
+  }
+
   .poem-body {
     flex: 1;
     min-height: 0;
@@ -496,8 +593,18 @@
     <button type="button" class="return" id="back-to-walt">&larr; back to walt</button>
     <button type="button" class="return" id="to-sketches">marginalia sketches &rarr;</button>
     <p id="learn-more">This is only a taste of Whitman. For his full biography, letters, and complete works, see <a href="https://whitmanarchive.org" target="_blank" rel="noopener">the Walt Whitman Archive</a> &mdash; or for a shorter introduction, <a href="https://www.poetryfoundation.org/poets/walt-whitman" target="_blank" rel="noopener">the Poetry Foundation</a>.</p>
-    <button type="button" id="build-info-btn" title="Build 2026-11-01d &mdash; 10pm Pacific" aria-label="build info">i</button>
-    <div id="build-info-popup">Build 2026-11-01d &mdash; 10pm Pacific</div>
+    <button type="button" id="build-info-btn" title="About this project" aria-label="about this project">i</button>
+    <div id="build-info-popup">
+      <div id="build-info-card">
+        <button type="button" id="build-info-close" aria-label="close">&times;</button>
+        <h2>About this project</h2>
+        <p>A selection of Walt Whitman&rsquo;s poetry, with scroll-synced marginalia imagery and spoken recitation.</p>
+        <p>Created by Rodney Stephen (Steve) Price, with Claude (Anthropic), 2026.</p>
+        <p>Imagery is a mix of public-domain period photographs and lithographs, and AI-generated artwork (Google Flow) for the Drum-Taps selections &mdash; directed and curated by Rodney Stephen (Steve) Price.</p>
+        <p>Poems are Walt Whitman&rsquo;s own words, in the public domain.</p>
+        <p class="build-line">Build 2026-11-01d &mdash; 10pm Pacific</p>
+      </div>
+    </div>
   </div>
 
   <!-- MARGINALIA SKETCHES preview -->
@@ -575,6 +682,13 @@
     <audio id="taps-audio" preload="none"></audio>
     <audio id="lilacs-audio" preload="none"></audio>
     <audio id="myself-audio" preload="none"></audio>
+
+    <div id="play-bar">
+      <button type="button" id="pb-rewind" disabled aria-label="rewind 10 seconds" title="rewind 10s">&#8634;<span>10</span></button>
+      <button type="button" id="pb-play-pause" disabled aria-label="play">&#9654;</button>
+      <button type="button" id="pb-forward" disabled aria-label="forward 10 seconds" title="forward 10s">&#8635;<span>10</span></button>
+    </div>
+
     <div id="poem-cradle" class="poem-body">
       <div class="poem-text">
         <section data-image="none">
@@ -1308,8 +1422,15 @@
   // events that start inside the image pane; the text column keeps native scrolling.
   const buildInfoBtn = document.getElementById('build-info-btn');
   const buildInfoPopup = document.getElementById('build-info-popup');
+  const buildInfoClose = document.getElementById('build-info-close');
   if (buildInfoBtn && buildInfoPopup) {
-    buildInfoBtn.addEventListener('click', () => buildInfoPopup.classList.toggle('show'));
+    const closeBuildInfo = () => buildInfoPopup.classList.remove('show');
+    buildInfoBtn.addEventListener('click', () => buildInfoPopup.classList.add('show'));
+    if (buildInfoClose) buildInfoClose.addEventListener('click', closeBuildInfo);
+    buildInfoPopup.addEventListener('click', (e) => { if (e.target === buildInfoPopup) closeBuildInfo(); });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeBuildInfo();
+    });
   }
 
   document.querySelectorAll('.marginalia-pane').forEach(pane => {
@@ -1595,6 +1716,29 @@
   let lastLilacsCueIdx = -1;
   let lastMyselfCueIdx = -1;
   let activePoemAudio = null; // 'cradle' | 'taps' | 'lilacs' | 'myself' | null
+  const POEM_PAUSE_MS = 3000; // pause between poems on a page with more than one
+  const cradlePoemPauses = new Set();
+  const tapsPoemPauses = new Set();
+  const lilacsPoemPauses = new Set();
+  const myselfPoemPauses = new Set();
+  // A cue whose id ends "-h-N" marks a poem's heading; N > 0 (not the very first
+  // cue on the page) means a new poem just started after another one on the same
+  // page, which is where the pause belongs.
+  function maybePauseBetweenPoems(idx, cue, audioEl, pausesSeen) {
+    if (idx === 0 || !/-h-\d+$/.test(cue.id) || pausesSeen.has(idx)) return;
+    pausesSeen.add(idx);
+    audioEl.pause();
+    setTimeout(() => {
+      if (voiceOn && getActiveAudioEl() === audioEl) audioEl.play();
+    }, POEM_PAUSE_MS);
+  }
+  function getActiveAudioEl() {
+    if (activePoemAudio === 'cradle') return cradleAudio;
+    if (activePoemAudio === 'taps') return tapsAudio;
+    if (activePoemAudio === 'lilacs') return lilacsAudio;
+    if (activePoemAudio === 'myself') return myselfAudio;
+    return null;
+  }
 
   function enableVoiceToggle(poemKey) {
     activePoemAudio = poemKey;
@@ -1602,6 +1746,7 @@
     voiceToggle.disabled = false;
     voiceToggle.title = '';
     voiceToggle.textContent = 'voice: off';
+    updatePlayBarState();
   }
   function disableVoiceToggle() {
     stopActiveVoice();
@@ -1609,61 +1754,70 @@
     voiceToggle.disabled = true;
     voiceToggle.title = 'no recording added yet';
     voiceToggle.textContent = 'voice: not recorded yet';
+    updatePlayBarState();
   }
 
   function stopActiveVoice() {
     voiceOn = false;
-    if (activePoemAudio === 'cradle') { cradleAudio.pause(); lastCradleCueIdx = -1; }
-    else if (activePoemAudio === 'taps') { tapsAudio.pause(); lastTapsCueIdx = -1; }
-    else if (activePoemAudio === 'lilacs') { lilacsAudio.pause(); lastLilacsCueIdx = -1; }
-    else if (activePoemAudio === 'myself') { myselfAudio.pause(); lastMyselfCueIdx = -1; }
+    if (activePoemAudio === 'cradle') { cradleAudio.pause(); lastCradleCueIdx = -1; cradlePoemPauses.clear(); }
+    else if (activePoemAudio === 'taps') { tapsAudio.pause(); lastTapsCueIdx = -1; tapsPoemPauses.clear(); }
+    else if (activePoemAudio === 'lilacs') { lilacsAudio.pause(); lastLilacsCueIdx = -1; lilacsPoemPauses.clear(); }
+    else if (activePoemAudio === 'myself') { myselfAudio.pause(); lastMyselfCueIdx = -1; myselfPoemPauses.clear(); }
   }
 
-  voiceToggle.addEventListener('click', () => {
-    if (voiceToggle.disabled) return;
-    if (!voiceOn) {
-      if (activePoemAudio === 'cradle') {
-        if (!cradleAudioLoaded) {
-          cradleAudio.src = 'data:audio/mp4;base64,' + CRADLE_AUDIO_B64;
-          cradleAudioLoaded = true;
-        }
-        voiceOn = true;
-        voiceToggle.textContent = 'voice: on';
-        cradleAudio.play();
-      } else if (activePoemAudio === 'taps') {
-        if (!tapsAudioLoaded) {
-          tapsAudio.src = 'data:audio/mp4;base64,' + TAPS_AUDIO_B64;
-          tapsAudioLoaded = true;
-        }
-        voiceOn = true;
-        voiceToggle.textContent = 'voice: on';
-        tapsAudio.play();
-      } else if (activePoemAudio === 'lilacs') {
-        if (!lilacsAudioLoaded) {
-          lilacsAudio.src = 'data:audio/mp4;base64,' + LILACS_AUDIO_B64;
-          lilacsAudioLoaded = true;
-        }
-        voiceOn = true;
-        voiceToggle.textContent = 'voice: on';
-        lilacsAudio.play();
-      } else if (activePoemAudio === 'myself') {
-        if (!myselfAudioLoaded) {
-          myselfAudio.src = 'data:audio/mp4;base64,' + MYSELF_AUDIO_B64;
-          myselfAudioLoaded = true;
-        }
-        voiceOn = true;
-        voiceToggle.textContent = 'voice: on';
-        myselfAudio.play();
-      }
+  function startVoice() {
+    if (voiceToggle.disabled || voiceOn) return;
+    if (activePoemAudio === 'cradle') {
+      if (!cradleAudioLoaded) { cradleAudio.src = 'data:audio/mp4;base64,' + CRADLE_AUDIO_B64; cradleAudioLoaded = true; }
+      cradleAudio.play();
+    } else if (activePoemAudio === 'taps') {
+      if (!tapsAudioLoaded) { tapsAudio.src = 'data:audio/mp4;base64,' + TAPS_AUDIO_B64; tapsAudioLoaded = true; }
+      tapsAudio.play();
+    } else if (activePoemAudio === 'lilacs') {
+      if (!lilacsAudioLoaded) { lilacsAudio.src = 'data:audio/mp4;base64,' + LILACS_AUDIO_B64; lilacsAudioLoaded = true; }
+      lilacsAudio.play();
+    } else if (activePoemAudio === 'myself') {
+      if (!myselfAudioLoaded) { myselfAudio.src = 'data:audio/mp4;base64,' + MYSELF_AUDIO_B64; myselfAudioLoaded = true; }
+      myselfAudio.play();
     } else {
-      voiceOn = false;
-      voiceToggle.textContent = 'voice: off';
-      if (activePoemAudio === 'cradle') cradleAudio.pause();
-      else if (activePoemAudio === 'taps') tapsAudio.pause();
-      else if (activePoemAudio === 'lilacs') lilacsAudio.pause();
-      else if (activePoemAudio === 'myself') myselfAudio.pause();
+      return;
     }
-  });
+    voiceOn = true;
+    voiceToggle.textContent = 'voice: on';
+    updatePlayBarState();
+  }
+
+  function pauseVoice() {
+    if (!voiceOn) return;
+    voiceOn = false;
+    voiceToggle.textContent = 'voice: off';
+    const el = getActiveAudioEl();
+    if (el) el.pause();
+    updatePlayBarState();
+  }
+
+  function skipSeconds(delta) {
+    const el = getActiveAudioEl();
+    if (!el) return;
+    const max = isFinite(el.duration) ? el.duration : Infinity;
+    el.currentTime = Math.min(Math.max(0, el.currentTime + delta), max);
+  }
+
+  function updatePlayBarState() {
+    const disabled = voiceToggle.disabled;
+    [pbRewind, pbPlayPause, pbForward].forEach(btn => { btn.disabled = disabled; });
+    pbPlayPause.textContent = voiceOn ? '\u23F8' : '\u25B6';
+    pbPlayPause.setAttribute('aria-label', voiceOn ? 'pause' : 'play');
+  }
+
+  const pbRewind = document.getElementById('pb-rewind');
+  const pbPlayPause = document.getElementById('pb-play-pause');
+  const pbForward = document.getElementById('pb-forward');
+  pbPlayPause.addEventListener('click', () => { if (voiceOn) pauseVoice(); else startVoice(); });
+  pbRewind.addEventListener('click', () => skipSeconds(-10));
+  pbForward.addEventListener('click', () => skipSeconds(10));
+
+  voiceToggle.addEventListener('click', () => { if (voiceOn) pauseVoice(); else startVoice(); });
 
   cradleAudio.addEventListener('timeupdate', () => {
     if (!voiceOn || activePoemAudio !== 'cradle') return;
@@ -1678,11 +1832,18 @@
       const el = document.getElementById(cue.id);
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       setMarginalia(cue.img);
+      maybePauseBetweenPoems(idx, cue, cradleAudio, cradlePoemPauses);
     }
   });
 
   cradleAudio.addEventListener('ended', () => {
-    if (activePoemAudio === 'cradle') { voiceOn = false; voiceToggle.textContent = 'voice: off'; }
+    if (activePoemAudio === 'cradle') {
+      voiceOn = false;
+      voiceToggle.textContent = 'voice: off';
+      lastCradleCueIdx = -1;
+      cradlePoemPauses.clear();
+      updatePlayBarState();
+    }
   });
 
   tapsAudio.addEventListener('timeupdate', () => {
@@ -1698,11 +1859,18 @@
       const el = document.getElementById(cue.id);
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       setTapsMarginalia(cue.img);
+      maybePauseBetweenPoems(idx, cue, tapsAudio, tapsPoemPauses);
     }
   });
 
   tapsAudio.addEventListener('ended', () => {
-    if (activePoemAudio === 'taps') { voiceOn = false; voiceToggle.textContent = 'voice: off'; }
+    if (activePoemAudio === 'taps') {
+      voiceOn = false;
+      voiceToggle.textContent = 'voice: off';
+      lastTapsCueIdx = -1;
+      tapsPoemPauses.clear();
+      updatePlayBarState();
+    }
   });
 
   lilacsAudio.addEventListener('timeupdate', () => {
@@ -1718,11 +1886,18 @@
       const el = document.getElementById(cue.id);
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       setLilacsMarginalia(cue.img);
+      maybePauseBetweenPoems(idx, cue, lilacsAudio, lilacsPoemPauses);
     }
   });
 
   lilacsAudio.addEventListener('ended', () => {
-    if (activePoemAudio === 'lilacs') { voiceOn = false; voiceToggle.textContent = 'voice: off'; }
+    if (activePoemAudio === 'lilacs') {
+      voiceOn = false;
+      voiceToggle.textContent = 'voice: off';
+      lastLilacsCueIdx = -1;
+      lilacsPoemPauses.clear();
+      updatePlayBarState();
+    }
   });
 
   myselfAudio.addEventListener('timeupdate', () => {
@@ -1738,11 +1913,18 @@
       const el = document.getElementById(cue.id);
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       setMyselfMarginalia(cue.img);
+      maybePauseBetweenPoems(idx, cue, myselfAudio, myselfPoemPauses);
     }
   });
 
   myselfAudio.addEventListener('ended', () => {
-    if (activePoemAudio === 'myself') { voiceOn = false; voiceToggle.textContent = 'voice: off'; }
+    if (activePoemAudio === 'myself') {
+      voiceOn = false;
+      voiceToggle.textContent = 'voice: off';
+      lastMyselfCueIdx = -1;
+      myselfPoemPauses.clear();
+      updatePlayBarState();
+    }
   });
 
 
