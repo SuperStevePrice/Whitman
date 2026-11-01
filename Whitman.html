@@ -1,6 +1,11 @@
 <!DOCTYPE html>
 <!--
   Whitman project — build log
+  2026-11-01g: Moved the info "i" button from the bottom-right to the top-right
+  corner of the contents page (so it can never get pushed below the fold, the
+  way the old bottom-of-list stamp once could) and made it genuinely visible
+  (opacity 0.5 -> 0.8, added a background fill). Also fixed the build label
+  inside the About panel, which was still showing a stale "2026-11-01d".
   2026-11-01f: Added a 3-second pause between poems on any page with more than
   one (currently Drum-Taps); detected generically off each poem's heading cues,
   so it will apply automatically to future multi-poem pages too. Added a
@@ -272,17 +277,18 @@
   #build-info-btn {
     all: unset;
     position: fixed;
-    bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+    top: calc(1rem + env(safe-area-inset-top, 0px));
     right: 1rem;
-    width: 1.7rem;
-    height: 1.7rem;
+    width: 1.8rem;
+    height: 1.8rem;
     border-radius: 50%;
-    border: 1px solid rgba(201,163,95,0.5);
+    border: 1px solid rgba(201,163,95,0.7);
+    background: rgba(6,4,2,0.4);
     color: var(--gold);
-    opacity: 0.5;
+    opacity: 0.8;
     font-family: Georgia, serif;
     font-style: italic;
-    font-size: 0.85rem;
+    font-size: 0.9rem;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -602,7 +608,7 @@
         <p>Created by Rodney Stephen (Steve) Price, with Claude (Anthropic), 2026.</p>
         <p>Imagery is a mix of public-domain period photographs and lithographs, and AI-generated artwork (Google Flow) for the Drum-Taps selections &mdash; directed and curated by Rodney Stephen (Steve) Price.</p>
         <p>Poems are Walt Whitman&rsquo;s own words, in the public domain.</p>
-        <p class="build-line">Build 2026-11-01d &mdash; 10pm Pacific</p>
+        <p class="build-line">Build 2026-11-01f &mdash; 11pm Pacific</p>
       </div>
     </div>
   </div>
