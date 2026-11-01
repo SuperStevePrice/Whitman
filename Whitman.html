@@ -1,6 +1,15 @@
 <!DOCTYPE html>
 <!--
   Whitman project — build log
+  2026-11-01l: Replaced the fixed 3-second pause between poems with a modal
+  dialog (Repeat / Continue / Stop) -- no more guessing a pause length; the
+  listener decides. Fires at every poem-to-poem boundary on a multi-poem page,
+  and also now at the natural end of any poem's audio (Repeat from the top /
+  Stop, no Continue). Repeat rewinds to the start of whichever poem just
+  finished, found generically from the cue data, same as the pause detection.
+  2026-11-01k: Confirmed (by ear) that the pause-between-poems fix is working
+  correctly on Drum-Taps; removed the temporary "pausing for the next poem..."
+  diagnostic text, now that its job is done.
   2026-11-01j: Corrected three mistimed cues at the start of "Come Up from the
   Fields Father" in Drum-Taps (tp-h-4, tp-p-5, tp-p-6), found by extracting the
   actual embedded audio and measuring real silence gaps and speech content with
@@ -472,20 +481,57 @@
   }
   .voice-toggle:not(:disabled) { opacity: 0.85; cursor: pointer; }
   .voice-toggle:disabled { opacity: 0.4; cursor: not-allowed; }
-  #pause-indicator {
+  #poem-modal {
     position: fixed;
-    left: 50%;
-    bottom: calc(4.3rem + env(safe-area-inset-bottom, 0px));
-    transform: translateX(-50%);
-    font-size: 0.75rem;
-    font-style: italic;
-    color: var(--gold);
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    background: rgba(6,4,2,0.8);
     opacity: 0;
     pointer-events: none;
-    transition: opacity 200ms ease;
-    z-index: 6;
+    transition: opacity 250ms ease;
+    z-index: 25;
   }
-  #pause-indicator.show { opacity: 0.95; }
+  #poem-modal.show { opacity: 1; pointer-events: auto; }
+  #poem-modal-card {
+    max-width: 24rem;
+    text-align: center;
+    background: var(--ink-soft);
+    border: 1px solid rgba(201,163,95,0.45);
+    border-radius: 0.75rem;
+    padding: 1.9rem 1.7rem;
+    color: var(--paper-light);
+  }
+  #poem-modal-message {
+    font-size: 1rem;
+    font-style: italic;
+    line-height: 1.5;
+    margin: 0 0 1.4rem;
+    opacity: 0.95;
+  }
+  #poem-modal-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 0.8rem;
+    flex-wrap: wrap;
+  }
+  #poem-modal-buttons button {
+    all: unset;
+    cursor: pointer;
+    padding: 0.5rem 1.1rem;
+    border: 1px solid rgba(201,163,95,0.6);
+    border-radius: 999px;
+    color: var(--gold);
+    font-size: 0.8rem;
+    letter-spacing: 0.05em;
+    transition: background 150ms ease, color 150ms ease;
+  }
+  #poem-modal-buttons button:hover, #poem-modal-buttons button:focus-visible {
+    background: var(--gold);
+    color: var(--ink);
+  }
   #play-bar {
     position: fixed;
     left: 50%;
@@ -642,7 +688,7 @@
         <p>Created by Rodney Stephen (Steve) Price, with Claude (Anthropic), 2026.</p>
         <p>Imagery is a mix of public-domain period photographs and lithographs, and AI-generated artwork (Google Flow) for the Drum-Taps selections &mdash; directed and curated by Rodney Stephen (Steve) Price.</p>
         <p>Poems are Walt Whitman&rsquo;s own words, in the public domain.</p>
-        <p class="build-line">Build 2026-11-01j &mdash; 6am Pacific</p>
+        <p class="build-line">Build 2026-11-01l &mdash; 6:42am Pacific</p>
       </div>
     </div>
   </div>
@@ -723,7 +769,16 @@
     <audio id="lilacs-audio" preload="none"></audio>
     <audio id="myself-audio" preload="none"></audio>
 
-    <div id="pause-indicator">pausing for the next poem&hellip;</div>
+    <div id="poem-modal">
+      <div id="poem-modal-card">
+        <p id="poem-modal-message"></p>
+        <div id="poem-modal-buttons">
+          <button type="button" id="poem-modal-repeat">Repeat</button>
+          <button type="button" id="poem-modal-continue">Continue</button>
+          <button type="button" id="poem-modal-stop">Stop</button>
+        </div>
+      </div>
+    </div>
 
     <div id="play-bar">
       <button type="button" id="pb-rewind" disabled aria-label="rewind 10 seconds" title="rewind 10s">&#8634;<span>10</span></button>
@@ -1758,20 +1813,73 @@
   let lastLilacsCueIdx = -1;
   let lastMyselfCueIdx = -1;
   let activePoemAudio = null; // 'cradle' | 'taps' | 'lilacs' | 'myself' | null
-  const POEM_PAUSE_MS = 3000; // pause between poems on a page with more than one
   // A cue whose id ends "-h-N" marks a poem's heading; N > 0 (not the very first
   // cue on the page) means a new poem just started after another one on the same
-  // page, which is where the pause belongs.
-  function maybePauseBetweenPoems(idx, cue, audioEl) {
+  // page -- that's a boundary, and instead of guessing how long a pause should
+  // be, we stop and let the listener choose what happens next.
+  function maybePauseBetweenPoems(idx, cues, cue, audioEl) {
     if (idx === 0 || !/-h-\d+$/.test(cue.id)) return;
+    let prevHeadingTime = 0;
+    for (let i = idx - 1; i >= 0; i--) {
+      if (/-h-\d+$/.test(cues[i].id)) { prevHeadingTime = cues[i].t; break; }
+    }
     audioEl.pause();
-    const indicator = document.getElementById('pause-indicator');
-    if (indicator) indicator.classList.add('show');
-    setTimeout(() => {
-      if (indicator) indicator.classList.remove('show');
-      if (voiceOn && getActiveAudioEl() === audioEl) audioEl.play();
-    }, POEM_PAUSE_MS);
+    showPoemModal('between', audioEl, prevHeadingTime);
   }
+
+  const poemModal = document.getElementById('poem-modal');
+  const poemModalMessage = document.getElementById('poem-modal-message');
+  const poemModalRepeat = document.getElementById('poem-modal-repeat');
+  const poemModalContinue = document.getElementById('poem-modal-continue');
+  const poemModalStop = document.getElementById('poem-modal-stop');
+  let modalAudioEl = null;
+  let modalRepeatTime = 0;
+
+  function showPoemModal(mode, audioEl, repeatTime) {
+    modalAudioEl = audioEl;
+    modalRepeatTime = repeatTime;
+    if (mode === 'between') {
+      poemModalMessage.textContent = 'That poem has ended.';
+      poemModalRepeat.textContent = 'Repeat';
+      poemModalContinue.style.display = '';
+    } else {
+      poemModalMessage.textContent = "That's the last poem in this selection.";
+      poemModalRepeat.textContent = 'Repeat from the top';
+      poemModalContinue.style.display = 'none';
+    }
+    voiceOn = false;
+    voiceToggle.textContent = 'voice: off';
+    updatePlayBarState();
+    poemModal.classList.add('show');
+  }
+
+  function hidePoemModal() {
+    poemModal.classList.remove('show');
+  }
+
+  poemModalContinue.addEventListener('click', () => {
+    hidePoemModal();
+    if (!modalAudioEl) return;
+    voiceOn = true;
+    voiceToggle.textContent = 'voice: on';
+    updatePlayBarState();
+    modalAudioEl.play();
+  });
+  poemModalRepeat.addEventListener('click', () => {
+    hidePoemModal();
+    if (!modalAudioEl) return;
+    modalAudioEl.currentTime = modalRepeatTime;
+    voiceOn = true;
+    voiceToggle.textContent = 'voice: on';
+    updatePlayBarState();
+    modalAudioEl.play();
+  });
+  poemModalStop.addEventListener('click', () => {
+    hidePoemModal();
+    voiceOn = false;
+    voiceToggle.textContent = 'voice: off';
+    updatePlayBarState();
+  });
   function getActiveAudioEl() {
     if (activePoemAudio === 'cradle') return cradleAudio;
     if (activePoemAudio === 'taps') return tapsAudio;
@@ -1872,16 +1980,14 @@
       const el = document.getElementById(cue.id);
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       setMarginalia(cue.img);
-      maybePauseBetweenPoems(idx, cue, cradleAudio);
+      maybePauseBetweenPoems(idx, CRADLE_CUES, cue, cradleAudio);
     }
   });
 
   cradleAudio.addEventListener('ended', () => {
     if (activePoemAudio === 'cradle') {
-      voiceOn = false;
-      voiceToggle.textContent = 'voice: off';
       lastCradleCueIdx = -1;
-      updatePlayBarState();
+      showPoemModal('end', cradleAudio, 0);
     }
   });
 
@@ -1898,16 +2004,14 @@
       const el = document.getElementById(cue.id);
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       setTapsMarginalia(cue.img);
-      maybePauseBetweenPoems(idx, cue, tapsAudio);
+      maybePauseBetweenPoems(idx, TAPS_CUES, cue, tapsAudio);
     }
   });
 
   tapsAudio.addEventListener('ended', () => {
     if (activePoemAudio === 'taps') {
-      voiceOn = false;
-      voiceToggle.textContent = 'voice: off';
       lastTapsCueIdx = -1;
-      updatePlayBarState();
+      showPoemModal('end', tapsAudio, 0);
     }
   });
 
@@ -1924,16 +2028,14 @@
       const el = document.getElementById(cue.id);
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       setLilacsMarginalia(cue.img);
-      maybePauseBetweenPoems(idx, cue, lilacsAudio);
+      maybePauseBetweenPoems(idx, LILACS_CUES, cue, lilacsAudio);
     }
   });
 
   lilacsAudio.addEventListener('ended', () => {
     if (activePoemAudio === 'lilacs') {
-      voiceOn = false;
-      voiceToggle.textContent = 'voice: off';
       lastLilacsCueIdx = -1;
-      updatePlayBarState();
+      showPoemModal('end', lilacsAudio, 0);
     }
   });
 
@@ -1950,16 +2052,14 @@
       const el = document.getElementById(cue.id);
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       setMyselfMarginalia(cue.img);
-      maybePauseBetweenPoems(idx, cue, myselfAudio);
+      maybePauseBetweenPoems(idx, MYSELF_CUES, cue, myselfAudio);
     }
   });
 
   myselfAudio.addEventListener('ended', () => {
     if (activePoemAudio === 'myself') {
-      voiceOn = false;
-      voiceToggle.textContent = 'voice: off';
       lastMyselfCueIdx = -1;
-      updatePlayBarState();
+      showPoemModal('end', myselfAudio, 0);
     }
   });
 
