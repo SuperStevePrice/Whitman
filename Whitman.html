@@ -1,6 +1,15 @@
 <!DOCTYPE html>
 <!--
   Whitman project — build log
+  2026-11-03 06:43 Pacific: Added a poem-jump nav for pages with more than one
+  poem (currently Drum-Taps): a small pill strip under the title, one button
+  per poem, that seeks the shared audio to that poem's start, scrolls its
+  heading into view, updates the marginalia, and starts playback if it isn't
+  already running. Same jump is bound to the Down/Up arrow keys (next/previous
+  poem on the page) while the recitation screen is open. Built generically off
+  each page's existing heading cues (ids ending "-h-N"), so it will apply
+  automatically to future multi-poem pages too, the same way the pause-between-
+  poems feature does. Single-poem pages (Lilacs, Cradle, Myself) show nothing.
   2026-11-01 06:56 Pacific: Moved the play bar from a floating overlay at the
   bottom to a centered toolbar at the very top of the recitation screen, above
   the poem title. It's now part of the normal page layout rather than
@@ -476,6 +485,41 @@
     letter-spacing: 0.06em;
     margin: 0;
   }
+  #poem-jump-nav {
+    display: none;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    width: fit-content;
+    max-width: calc(100% - 2rem);
+    margin: 0 auto 0.9rem;
+    padding: 0.4rem 0.7rem;
+    background: rgba(6,4,2,0.55);
+    border: 1px solid rgba(201,163,95,0.4);
+    border-radius: 999px;
+    backdrop-filter: blur(6px);
+    flex: 0 0 auto;
+  }
+  #poem-jump-nav.show { display: flex; }
+  #poem-jump-nav button {
+    all: unset;
+    cursor: pointer;
+    padding: 0.3rem 0.75rem;
+    border-radius: 999px;
+    font-family: 'IM Fell English', Georgia, serif;
+    font-size: 0.78rem;
+    letter-spacing: 0.02em;
+    color: var(--paper-light);
+    opacity: 0.75;
+    transition: opacity 150ms ease, background 150ms ease, color 150ms ease;
+  }
+  #poem-jump-nav button:hover, #poem-jump-nav button:focus-visible { opacity: 1; }
+  #poem-jump-nav button.current {
+    opacity: 1;
+    background: var(--gold);
+    color: var(--ink);
+  }
   .voice-toggle {
     /* Hidden: the floating play bar is now the only playback control the user
        sees. The element itself stays in the page because the script still uses
@@ -796,6 +840,7 @@
       <h2 id="recitation-title"></h2>
       <button type="button" class="voice-toggle" id="voice-toggle" disabled title="no recording added yet">voice: not recorded yet</button>
     </div>
+    <div id="poem-jump-nav" role="navigation" aria-label="Jump to a poem on this page"></div>
 
     <audio id="cradle-audio" preload="none"></audio>
     <audio id="taps-audio" preload="none"></audio>
@@ -1599,6 +1644,7 @@
         placeholderBody.classList.add('active');
         disableVoiceToggle();
       }
+      renderPoemJumpNav(key);
       syncScreenInert();
     });
   });
@@ -2162,6 +2208,102 @@
     if (best) setTapsMarginalia(best.target.dataset.image);
   }, { root: document.querySelector('#poem-taps .poem-text'), threshold: [0.3, 0.5, 0.7] });
   tapsSections.forEach(s => tapsObserver.observe(s));
+
+  // ---- Poem-jump navigation (pages with more than one poem, e.g. Drum-Taps) ----
+  // Driven entirely by each page's existing cue data: any cue id ending "-h-N"
+  // is a poem heading, same pattern the pause-between-poems feature uses, so a
+  // future multi-poem page gets this automatically with no extra wiring.
+  const POEM_JUMP_CTRL = {
+    cradle: { cues: CRADLE_CUES, el: cradleAudio, setIdx: v => { lastCradleCueIdx = v; }, marginalia: setMarginalia },
+    lilacs: { cues: LILACS_CUES, el: lilacsAudio, setIdx: v => { lastLilacsCueIdx = v; }, marginalia: setLilacsMarginalia },
+    taps: { cues: TAPS_CUES, el: tapsAudio, setIdx: v => { lastTapsCueIdx = v; }, marginalia: setTapsMarginalia },
+    myself: { cues: MYSELF_CUES, el: myselfAudio, setIdx: v => { lastMyselfCueIdx = v; }, marginalia: setMyselfMarginalia }
+  };
+
+  function poemHeadingCues(key) {
+    const ctrl = POEM_JUMP_CTRL[key];
+    if (!ctrl) return [];
+    return ctrl.cues.filter(c => /-h-\d+$/.test(c.id));
+  }
+
+  const poemJumpNav = document.getElementById('poem-jump-nav');
+
+  function renderPoemJumpNav(key) {
+    poemJumpNav.innerHTML = '';
+    const headings = poemHeadingCues(key);
+    if (headings.length < 2) { poemJumpNav.classList.remove('show'); return; }
+    headings.forEach(cue => {
+      const headingEl = document.getElementById(cue.id);
+      const label = headingEl ? headingEl.textContent : cue.id;
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = label;
+      btn.title = 'Jump to \u201c' + label + '\u201d';
+      btn.dataset.headingId = cue.id;
+      btn.addEventListener('click', () => jumpToPoemHeading(key, cue.id));
+      poemJumpNav.appendChild(btn);
+    });
+    poemJumpNav.classList.add('show');
+    highlightPoemJumpNav(key);
+  }
+
+  function highlightPoemJumpNav(key) {
+    const ctrl = POEM_JUMP_CTRL[key];
+    const headings = poemHeadingCues(key);
+    if (!ctrl || headings.length < 2) return;
+    const t = ctrl.el.currentTime || 0;
+    let curId = headings[0].id;
+    for (let i = 0; i < headings.length; i++) {
+      if (headings[i].t <= t + 0.05) curId = headings[i].id; else break;
+    }
+    poemJumpNav.querySelectorAll('button').forEach(btn => {
+      btn.classList.toggle('current', btn.dataset.headingId === curId);
+    });
+  }
+
+  function jumpToPoemHeading(key, headingId) {
+    const ctrl = POEM_JUMP_CTRL[key];
+    if (!ctrl) return;
+    const idx = ctrl.cues.findIndex(c => c.id === headingId);
+    if (idx === -1) return;
+    const cue = ctrl.cues[idx];
+    if (!ctrl.el.src) {
+      // audio not loaded yet -- starting it will set currentTime to 0, so seek after.
+      if (!voiceToggle.disabled) startVoice();
+    }
+    ctrl.el.currentTime = cue.t;
+    ctrl.setIdx(idx);
+    const headingEl = document.getElementById(cue.id);
+    if (headingEl) headingEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    ctrl.marginalia(cue.img);
+    highlightPoemJumpNav(key);
+    if (!voiceToggle.disabled && !voiceOn) startVoice();
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+    if (!recitation.classList.contains('visible')) return;
+    if (poemModal.classList.contains('show')) return;
+    const key = activePoemAudio;
+    if (!key) return;
+    const headings = poemHeadingCues(key);
+    if (headings.length < 2) return;
+    e.preventDefault();
+    const ctrl = POEM_JUMP_CTRL[key];
+    const t = ctrl.el.currentTime || 0;
+    let curIdx = 0;
+    for (let i = 0; i < headings.length; i++) {
+      if (headings[i].t <= t + 0.05) curIdx = i; else break;
+    }
+    const nextIdx = Math.max(0, Math.min(headings.length - 1, curIdx + (e.key === 'ArrowDown' ? 1 : -1)));
+    jumpToPoemHeading(key, headings[nextIdx].id);
+  });
+
+  Object.keys(POEM_JUMP_CTRL).forEach(key => {
+    POEM_JUMP_CTRL[key].el.addEventListener('timeupdate', () => {
+      if (activePoemAudio === key) highlightPoemJumpNav(key);
+    });
+  });
 </script>
 </body>
 </html>
